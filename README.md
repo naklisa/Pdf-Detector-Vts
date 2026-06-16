@@ -52,12 +52,28 @@ Akses frontend di `http://localhost:3000`.
 
 1. Buka `http://localhost:3000`
 2. Unggah file PDF yang sesuai dengan template:
-   - `DATA OPERATOR - KAPAL` atau `CREW LIST` => akan menjadi `Data 16-17.xlsx`
-   - `LAPORAN METEOROLOGI` atau `CUACA` => akan menjadi `Data Cuaca.xlsx`
+   - **Data Kapal (A2)**: Cari keywords `DATA OPERATOR - KAPAL` atau `CREW LIST` => akan menjadi `Data 16-17.xlsx`
+   - **Data Cuaca (A1)**: Cari keywords `LAPORAN METEOROLOGI` atau `CUACA` => akan menjadi `Data Cuaca.xlsx`
 3. Jika template cocok, file Excel akan otomatis diunduh.
 4. Jika tidak cocok, akan muncul pesan kesalahan merah.
+
+## Fitur Template Detection
+
+Sistem deteksi template sudah diimprove untuk fleksibilitas maksimal:
+
+- ✅ **Multi-halaman**: Pencarian keyword di semua halaman PDF (tidak hanya halaman 1)
+- ✅ **Case-insensitive**: Mengenali `DATA OPERATOR - KAPAL`, `data operator - kapal`, `Data Operator - Kapal`, dll
+- ✅ **Flexible spacing**: Mengenali variasi spasi, tab, dan newline (contoh: `DATA  OPERATOR   -   KAPAL`)
+- ✅ **Robust extraction**: Field extraction yang lebih akurat dengan normalisasi teks
+
+Contoh PDF yang akan berhasil dikenali:
+- `data operator - kapal` (lowercase)
+- `DATA OPERATOR  -  KAPAL` (multiple spaces)
+- `Laporan     Meteorologi` (irregular spacing)
+- Keywords di halaman manapun dalam PDF
 
 ## Catatan
 
 - Backend akan membuat folder `templates/` dan `outputs/` secara otomatis saat dijalankan pertama kali.
 - Pastikan PDF benar-benar valid dan berisi informasi yang diharapkan.
+- Untuk PDF scanned/image, pastikan OCR recognition berfungsi baik atau gunakan PDF dengan text layer.

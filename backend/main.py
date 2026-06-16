@@ -65,26 +65,65 @@ def ensure_templates():
         create_template_cuaca(cuaca_path)
 
 
+def normalize_text(text: str) -> str:
+    """Normalize text: lowercase, remove extra spaces/newlines."""
+    text = text.lower()
+    # Replace multiple spaces/tabs/newlines with single space
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
 def extract_field(text: str, labels: list[str]) -> str:
+    """Extract field value from text with flexible matching."""
     for label in labels:
-        escaped = re.escape(label)
-        pattern = re.compile(rf"{escaped}\s*[:\-]?\s*(.+)", re.IGNORECASE)
-        match = pattern.search(text)
+        # Normalize both label and text for matching
+        normalized_label = normalize_text(label)
+        normalized_text = normalize_text(text)
+        
+        # Try exact pattern match with flexible spacing
+        escaped = re.escape(normalized_label)
+        pattern = re.compile(rf"{escaped}\s*[:\-]?\s*(.+)")
+        match = pattern.search(normalized_text)
         if match:
             value = match.group(1).strip()
             if value:
-                return value.split("\n")[0].strip()
+                return value.split(" ")[0].strip()
 
+    # Fallback: line by line search
     for line in text.splitlines():
-        upper = line.upper()
+        normalized_line = normalize_text(line)
         for label in labels:
-            label_upper = label.upper()
-            if label_upper in upper:
-                remainder = line[upper.index(label_upper) + len(label_upper) :].strip(" :\t-\u2013")
+            normalized_label = normalize_text(label)
+            if normalized_label in normalized_line:
+                # Extract remainder after label
+                idx = normalized_line.index(normalized_label) + len(normalized_label)
+                remainder = normalized_line[idx:].strip(" :\t-–")
                 if remainder:
                     return remainder.strip()
 
     return ""
+
+
+def find_template_type(pdf_text: str) -> str:
+    """Detect PDF template type by searching keywords across all text."""
+    normalized = normalize_text(pdf_text)
+    
+    # Keywords for A2 (Kapal)
+    a2_keywords = ["data operator kapal", "crew list"]
+    # Keywords for A1 (Cuaca)
+    a1_keywords = ["laporan meteorologi", "cuaca"]
+    
+    # Check A2 keywords
+    for keyword in a2_keywords:
+        if keyword in normalized:
+            return "A2"
+    
+    # Check A1 keywords
+    for keyword in a1_keywords:
+        if keyword in normalized:
+            return "A1"
+    
+    return None
 
 
 @app.on_event("startup")
@@ -106,25 +145,29 @@ async def convert_pdf(upload_file: UploadFile = File(...)):
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             if not pdf.pages:
                 raise HTTPException(status_code=422, detail="PDF tidak memiliki halaman.")
-            first_page_text = pdf.pages[0].extract_text() or ""
+            
+            # Extract text from all pages
+            full_text = ""
+            for page in pdf.pages:
+                page_text = page.extract_text() or ""
+                full_text += page_text + "\n"
     except Exception:
         raise HTTPException(status_code=422, detail="Gagal membaca PDF. Pastikan file valid.")
 
-    normalized_text = first_page_text.upper()
-    is_a2 = "DATA OPERATOR - KAPAL" in normalized_text or "CREW LIST" in normalized_text
-    is_a1 = "LAPORAN METEOROLOGI" in normalized_text or "CUACA" in normalized_text
-
-    if is_a2:
+    # Detect template type with flexible matching
+    template_type = find_template_type(full_text)
+    
+    if template_type == "A2":
         template_name = "template_kapal.xlsx"
         output_filename = "Data 16-17.xlsx"
         sheet_keys = {
             "nama_kapal": ["NAMA KAPAL"],
-            "nomor_kapal": ["NOMOR KAPAL", "NO KAPAL", "NOMOR KAPAL"]
+            "nomor_kapal": ["NOMOR KAPAL", "NO KAPAL"]
         }
-    elif is_a1:
+    elif template_type == "A1":
         template_name = "template_cuaca.xlsx"
         output_filename = "Data Cuaca.xlsx"
-        sheet_keys = {"kecepatan_angin": ["KECEPATAN ANGIN", "KECEPATAN ANGIN "]}
+        sheet_keys = {"kecepatan_angin": ["KECEPATAN ANGIN"]}
     else:
         raise HTTPException(
             status_code=422,
@@ -138,13 +181,13 @@ async def convert_pdf(upload_file: UploadFile = File(...)):
     workbook = openpyxl.load_workbook(template_path)
     worksheet = workbook.active
 
-    if is_a2:
-        nama_kapal = extract_field(first_page_text, sheet_keys["nama_kapal"]) or ""
-        nomor_kapal = extract_field(first_page_text, sheet_keys["nomor_kapal"]) or ""
+    if template_type == "A2":
+        nama_kapal = extract_field(full_text, sheet_keys["nama_kapal"]) or ""
+        nomor_kapal = extract_field(full_text, sheet_keys["nomor_kapal"]) or ""
         worksheet["B5"] = nama_kapal or "N/A"
         worksheet["C5"] = nomor_kapal or "N/A"
     else:
-        kecepatan_angin = extract_field(first_page_text, sheet_keys["kecepatan_angin"]) or ""
+        kecepatan_angin = extract_field(full_text, sheet_keys["kecepatan_angin"]) or ""
         worksheet["B4"] = kecepatan_angin or "N/A"
 
     output_path = OUTPUTS_DIR / output_filename

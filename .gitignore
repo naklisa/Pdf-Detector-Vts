@@ -1,0 +1,74 @@
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+
+# Backend-specific
+backend/.venv/
+backend/outputs/
+backend/templates/
+backend/*.log
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.npm/
+.yarn/
+.pnpm/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+outputs/
+templates/
+coverage/
+*.sqlite3
+
+# Frontend build artifacts
+dist/
+build/
+
+# Ignore system files
+desktop.ini
+
+# JetBrains
+*.iml
+
+# Visual Studio Code
+.history/
+
